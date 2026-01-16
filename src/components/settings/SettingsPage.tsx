@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Settings, Clock, Calendar, Percent, Download, Trash2, RefreshCw, AlertTriangle, Check } from 'lucide-react';
+import { Settings, Clock, Calendar, Percent, Download, Trash2, RefreshCw, AlertTriangle, Check, Smartphone, Copy, Link } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { exportDataAsJSON, exportDataAsCSV } from '../../utils/export';
+import { getUserId } from '../../utils/userId';
 import { formatDistanceToNow } from 'date-fns';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -14,7 +15,52 @@ export default function SettingsPage() {
 
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showLinkDeviceModal, setShowLinkDeviceModal] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<'json' | 'csv' | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [linkDeviceId, setLinkDeviceId] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const currentUserId = getUserId();
+
+  const handleCopyUserId = async () => {
+    try {
+      await navigator.clipboard.writeText(currentUserId);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = currentUserId;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
+  const handleLinkDevice = () => {
+    const trimmedId = linkDeviceId.trim();
+    if (!trimmedId) {
+      setLinkError('Please enter a device ID');
+      return;
+    }
+    if (trimmedId === currentUserId) {
+      setLinkError('This is already your current device ID');
+      return;
+    }
+    // Basic UUID format validation
+    if (trimmedId.length < 20) {
+      setLinkError('Invalid device ID format');
+      return;
+    }
+
+    // Save the new user ID and reload
+    localStorage.setItem('ynaht_userId', trimmedId);
+    window.location.reload();
+  };
 
   const handleExportJSON = () => {
     exportDataAsJSON({
@@ -149,6 +195,52 @@ export default function SettingsPage() {
             className="w-48"
           />
         </div>
+      </div>
+
+      {/* Device Sync */}
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Smartphone className="w-5 h-5 text-gray-500" />
+          <h2 className="text-lg font-semibold text-gray-900">Device Sync</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Link multiple devices to share the same data. Copy your ID from one device and paste it on another.
+        </p>
+
+        {/* Current Device ID */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            This Device's ID
+          </label>
+          <div className="flex gap-2">
+            <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono text-gray-700 truncate">
+              {currentUserId}
+            </code>
+            <Button
+              variant={copySuccess ? 'primary' : 'secondary'}
+              onClick={handleCopyUserId}
+              className="shrink-0"
+            >
+              {copySuccess ? (
+                <>
+                  <Check className="w-4 h-4 mr-1" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Link Another Device */}
+        <Button variant="secondary" onClick={() => setShowLinkDeviceModal(true)}>
+          <Link className="w-4 h-4 mr-2" />
+          Link Another Device
+        </Button>
       </div>
 
       {/* Data Export */}
@@ -292,6 +384,68 @@ export default function SettingsPage() {
           <p className="text-red-600 font-medium">
             This action cannot be undone!
           </p>
+        </div>
+      </Modal>
+
+      {/* Link Device Modal */}
+      <Modal
+        isOpen={showLinkDeviceModal}
+        onClose={() => {
+          setShowLinkDeviceModal(false);
+          setLinkDeviceId('');
+          setLinkError(null);
+        }}
+        title="Link Another Device"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => {
+              setShowLinkDeviceModal(false);
+              setLinkDeviceId('');
+              setLinkError(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleLinkDevice}>
+              <Link className="w-4 h-4 mr-2" />
+              Link Device
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            To sync this device with another:
+          </p>
+          <ol className="list-decimal list-inside text-gray-600 space-y-2 text-sm">
+            <li>On your <strong>other device</strong>, go to Settings → Device Sync</li>
+            <li>Copy the Device ID from that device</li>
+            <li>Paste it below</li>
+          </ol>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Device ID from other device
+            </label>
+            <Input
+              type="text"
+              placeholder="Paste device ID here..."
+              value={linkDeviceId}
+              onChange={(e) => {
+                setLinkDeviceId(e.target.value);
+                setLinkError(null);
+              }}
+              className="font-mono text-sm"
+            />
+            {linkError && (
+              <p className="mt-1 text-sm text-red-600">{linkError}</p>
+            )}
+          </div>
+
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">
+              <strong>Note:</strong> This will replace any local data on this device with data from the linked device.
+            </p>
+          </div>
         </div>
       </Modal>
     </div>
