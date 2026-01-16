@@ -1,5 +1,5 @@
 import { useApp } from '../../context/AppContext';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ListTodo, Sparkles } from 'lucide-react';
 import ActivityCard from './ActivityCard';
 
 interface ActivityListProps {
@@ -11,8 +11,12 @@ export default function ActivityList({ showActualInput = false }: ActivityListPr
 
   if (!currentSession) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-gray-500">Start your day to add activities</p>
+      <div className="card p-8 text-center animate-fadeIn">
+        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ListTodo className="w-6 h-6 text-gray-400" />
+        </div>
+        <p className="text-gray-600 font-medium mb-1">No day session active</p>
+        <p className="text-sm text-gray-400">Start your day to add activities</p>
       </div>
     );
   }
@@ -28,9 +32,12 @@ export default function ActivityList({ showActualInput = false }: ActivityListPr
 
   if (sortedActivities.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-gray-500 mb-2">No activities planned yet</p>
-        <p className="text-sm text-gray-400">Add your first activity to start planning your day</p>
+      <div className="card p-8 text-center animate-fadeIn">
+        <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ListTodo className="w-6 h-6 text-primary-400" />
+        </div>
+        <p className="text-gray-600 font-medium mb-1">No activities planned yet</p>
+        <p className="text-sm text-gray-400">Press <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">/</kbd> to quickly add your first activity</p>
       </div>
     );
   }
@@ -55,7 +62,10 @@ export default function ActivityList({ showActualInput = false }: ActivityListPr
             </div>
           )}
           {completedCount === totalCount && (
-            <span className="text-sm text-green-600 font-medium">All done!</span>
+            <span className="text-sm text-green-600 font-medium flex items-center gap-1 animate-fadeIn">
+              <Sparkles className="w-4 h-4" />
+              All done!
+            </span>
           )}
         </div>
       )}

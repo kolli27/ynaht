@@ -37,15 +37,15 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center p-0 sm:p-4">
         {/* Backdrop */}
         <div
           className="fixed inset-0 bg-black/50 transition-opacity"
           onClick={onClose}
         />
 
-        {/* Modal */}
-        <div className={`relative bg-white rounded-xl shadow-xl w-full ${sizes[size]} transform transition-all`}>
+        {/* Modal - full screen on mobile */}
+        <div className={`relative bg-white shadow-xl w-full ${sizes[size]} transform transition-all animate-scaleIn sm:rounded-xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto`}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>

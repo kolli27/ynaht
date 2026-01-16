@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Target, History, ChevronRight, Archive } from 'lucide-react';
+import { LayoutDashboard, Target, History, ChevronRight, Archive, Settings, Keyboard } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { minutesToHoursMinutes } from '../../utils/time';
 import CategoryBadge from '../ui/CategoryBadge';
@@ -8,16 +8,18 @@ import ProgressBar from '../ui/ProgressBar';
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  onShowShortcuts?: () => void;
 }
 
-export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export default function Sidebar({ activeView, onViewChange, onShowShortcuts }: SidebarProps) {
   const { currentSession, allocatedMinutes, goalProgress, state, thisWeeksBacklog } = useApp();
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { id: 'planner', label: 'Daily Planner', icon: LayoutDashboard },
-    { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'history', label: 'History', icon: History },
+    { id: 'planner', label: 'Daily Planner', icon: LayoutDashboard, shortcut: '1' },
+    { id: 'goals', label: 'Goals', icon: Target, shortcut: '2' },
+    { id: 'history', label: 'History', icon: History, shortcut: '3' },
+    { id: 'settings', label: 'Settings', icon: Settings, shortcut: '4' },
   ];
 
   // Calculate time by category
@@ -69,7 +71,10 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
             }`}
           >
             <item.icon className="w-5 h-5" />
-            <span className="font-medium">{item.label}</span>
+            <span className="font-medium flex-1 text-left">{item.label}</span>
+            <kbd className="hidden sm:inline px-1.5 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">
+              {item.shortcut}
+            </kbd>
           </button>
         ))}
       </nav>
@@ -138,8 +143,22 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         </div>
       )}
 
-      {/* Collapse Button */}
+      {/* Spacer and Bottom Actions */}
       <div className="flex-1" />
+
+      {/* Keyboard Shortcuts Button */}
+      {onShowShortcuts && (
+        <button
+          onClick={onShowShortcuts}
+          className="mx-4 mb-2 p-2 text-gray-500 hover:bg-gray-100 rounded-lg flex items-center gap-2 text-sm"
+        >
+          <Keyboard className="w-4 h-4" />
+          <span>Shortcuts</span>
+          <kbd className="ml-auto px-1.5 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">?</kbd>
+        </button>
+      )}
+
+      {/* Collapse Button */}
       <button
         onClick={() => setCollapsed(true)}
         className="p-3 border-t border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center gap-2 text-sm"

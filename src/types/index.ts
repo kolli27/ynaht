@@ -95,6 +95,9 @@ export interface Settings {
   defaultWakeTime: string; // HH:mm format
   defaultSleepTime: string; // HH:mm format
   weekStartsOn: 0 | 1; // Sunday or Monday
+  productivityBuffer: number; // Percentage (e.g., 15 for 15%)
+  lastExportedAt?: string; // ISO datetime of last export
+  hasCompletedOnboarding: boolean;
 }
 
 export interface AppState {

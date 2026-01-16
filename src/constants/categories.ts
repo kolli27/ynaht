@@ -15,6 +15,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultWakeTime: '07:00',
   defaultSleepTime: '23:00',
   weekStartsOn: 1, // Monday
+  productivityBuffer: 15, // 15% buffer recommended
+  hasCompletedOnboarding: false,
 };
 
 export const CATEGORY_COLORS: Record<string, { bg: string; text: string; bar: string }> = {

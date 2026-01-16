@@ -7,7 +7,11 @@ import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import { exportDataAsJSON, exportDataAsCSV } from '../../utils/export';
 
-export default function Header() {
+interface HeaderProps {
+  children?: React.ReactNode;
+}
+
+export default function Header({ children }: HeaderProps) {
   const { state, currentSession, updateSettings } = useApp();
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -15,16 +19,17 @@ export default function Header() {
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
-        {/* Logo */}
+        {/* Mobile menu button + Logo */}
         <div className="flex items-center gap-2">
-          <Clock className="w-8 h-8 text-primary-600" />
-          <span className="text-xl font-bold text-gray-900">YNAHT</span>
-          <span className="text-sm text-gray-500 hidden sm:block">You Need A Hour Tracker</span>
+          {children}
+          <Clock className="w-7 h-7 md:w-8 md:h-8 text-primary-600" />
+          <span className="text-lg md:text-xl font-bold text-gray-900">YNAHT</span>
+          <span className="text-sm text-gray-500 hidden lg:block">You Need A Hour Tracker</span>
         </div>
 
-        {/* Current Session Info */}
+        {/* Current Session Info - hidden on small screens */}
         {currentSession && (
-          <div className="flex items-center gap-4 text-sm">
+          <div className="hidden sm:flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2 text-gray-600">
               <Sun className="w-4 h-4 text-yellow-500" />
               <span>{format(parseISO(currentSession.wakeTime), 'h:mm a')}</span>
@@ -37,8 +42,8 @@ export default function Header() {
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
+        {/* Actions - hidden on mobile (available in settings page) */}
+        <div className="hidden md:flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
             <Download className="w-5 h-5" />
           </Button>

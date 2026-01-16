@@ -56,8 +56,10 @@ export default function GoalsDashboard() {
 
       {/* Goals Grid */}
       {filteredGoals.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Target className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <div className="card p-12 text-center animate-fadeIn">
+          <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-primary-400" />
+          </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No goals yet</h3>
           <p className="text-gray-500 mb-4">
             Set recurring goals to track habits like exercise, reading, or learning.
@@ -77,7 +79,7 @@ export default function GoalsDashboard() {
 
       {/* Quick Stats */}
       {state.goals.length > 0 && (
-        <div className="mt-8 grid grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">{state.goals.length}</div>
             <div className="text-sm text-gray-500">Total Goals</div>

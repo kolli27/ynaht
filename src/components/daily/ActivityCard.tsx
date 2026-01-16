@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Edit2, Trash2, ChevronUp, ChevronDown, Clock, Play, Check, Pause, ArrowRight } from 'lucide-react';
 import { Activity } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -80,6 +80,18 @@ export default function ActivityCard({ activity, isFirst, isLast, showActualInpu
   const isCompleted = activity.completed || false;
   const varianceColor = hasActual ? getVarianceColor(activity.plannedMinutes, activity.actualMinutes!) : null;
   const variance = hasActual ? activity.actualMinutes! - activity.plannedMinutes : 0;
+  const [justCompleted, setJustCompleted] = useState(false);
+  const prevCompletedRef = useRef(isCompleted);
+
+  // Track completion animation
+  useEffect(() => {
+    if (isCompleted && !prevCompletedRef.current) {
+      setJustCompleted(true);
+      const timeout = setTimeout(() => setJustCompleted(false), 600);
+      return () => clearTimeout(timeout);
+    }
+    prevCompletedRef.current = isCompleted;
+  }, [isCompleted]);
 
   const handleActualBlur = () => {
     const value = parseInt(localActual);
@@ -136,18 +148,18 @@ export default function ActivityCard({ activity, isFirst, isLast, showActualInpu
 
   return (
     <>
-      <div className={`card p-4 ${borderClass} ${isCompleted ? 'bg-gray-50' : ''}`}>
+      <div className={`card p-4 ${borderClass} ${isCompleted ? 'bg-gray-50' : ''} ${justCompleted ? 'animate-successPulse' : ''} transition-all duration-200`}>
         <div className="flex items-start gap-3">
           {/* Checkbox */}
           <button
             onClick={handleToggleComplete}
-            className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+            className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
               isCompleted
                 ? 'bg-green-500 border-green-500 text-white'
-                : 'border-gray-300 hover:border-green-400'
+                : 'border-gray-300 hover:border-green-400 hover:scale-110'
             }`}
           >
-            {isCompleted && <Check className="w-3 h-3" />}
+            {isCompleted && <Check className={`w-3 h-3 ${justCompleted ? 'animate-checkmark' : ''}`} />}
           </button>
 
           {/* Reorder buttons */}
@@ -176,7 +188,7 @@ export default function ActivityCard({ activity, isFirst, isLast, showActualInpu
               </h4>
               <CategoryBadge categoryId={activity.categoryId} size="sm" />
               {isCompleted && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Done</span>
+                <span className={`text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ${justCompleted ? 'animate-scaleIn' : ''}`}>Done</span>
               )}
             </div>
 

@@ -60,7 +60,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
 
   return (
     <>
-      <div className="card p-4">
+      <div className={`card p-4 transition-all duration-200 hover:shadow-md ${progress.status === 'complete' ? 'ring-2 ring-green-200' : ''}`}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <Target className={`w-5 h-5 ${progress.status === 'complete' ? 'text-green-500' : 'text-gray-400'}`} />
@@ -105,7 +105,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
         </div>
 
         {progress.status === 'complete' && (
-          <div className="mt-2 py-1 px-2 bg-green-50 rounded text-sm text-green-700 text-center">
+          <div className="mt-2 py-1 px-2 bg-green-50 rounded text-sm text-green-700 text-center animate-fadeInUp">
             Goal achieved!
           </div>
         )}
