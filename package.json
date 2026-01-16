@@ -10,6 +10,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "@vercel/node": "^5.5.23",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.454.0",
     "react": "^18.3.1",

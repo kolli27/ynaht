@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react';
 import {
   AppState, DaySession, Activity, Goal, Settings, ViewMode,
   HistoricalActivity, GoalProgress, GoalStatus, BacklogItem,
@@ -7,6 +7,21 @@ import {
 import { DEFAULT_SETTINGS } from '../constants/categories';
 import { loadFromStorage, saveToStorage } from '../utils/storage';
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, isWithinInterval, format } from 'date-fns';
+import { getUserId } from '../utils/userId';
+
+// Sync configuration
+const API_BASE = '/api/data';
+const SYNC_DEBOUNCE_MS = 1000;
+const OFFLINE_QUEUE_KEY = 'ynaht_offlineQueue';
+
+interface SyncStatus {
+  isLoading: boolean;
+  isSyncing: boolean;
+  isOnline: boolean;
+  lastSyncedAt: string | null;
+  error: string | null;
+  hasUnsyncedChanges: boolean;
+}
 
 // Helper to generate unique IDs
 function generateId(): string {
@@ -451,6 +466,10 @@ interface AppContextType {
   triageState: TriageState | null;
   thisWeeksBacklog: BacklogItem[];
 
+  // Sync status
+  syncStatus: SyncStatus;
+  forceSync: () => Promise<void>;
+
   // Actions
   setViewMode: (mode: ViewMode) => void;
   startNewDay: (wakeTime: string, plannedSleepTime: string) => void;
@@ -478,23 +497,225 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+// Offline queue helpers
+function getOfflineQueue(): AppState | null {
+  try {
+    const queue = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    if (!queue) return null;
+    const parsed = JSON.parse(queue);
+    return parsed.data || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveToOfflineQueue(data: AppState): void {
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify({
+      data,
+      timestamp: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error('Failed to save to offline queue:', error);
+  }
+}
+
+function clearOfflineQueue(): void {
+  localStorage.removeItem(OFFLINE_QUEUE_KEY);
+}
+
 // Provider component
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [viewMode, setViewModeState] = React.useState<ViewMode>('plan');
+  const [syncStatus, setSyncStatus] = React.useState<SyncStatus>({
+    isLoading: true,
+    isSyncing: false,
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    lastSyncedAt: null,
+    error: null,
+    hasUnsyncedChanges: false,
+  });
 
-  // Load state from storage on mount
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const userId = getUserId();
+
+  // Monitor online status
   useEffect(() => {
-    const savedState = loadFromStorage<AppState | null>('appState_v2', null);
-    if (savedState) {
-      dispatch({ type: 'LOAD_STATE', payload: savedState });
-    }
+    const handleOnline = () => {
+      setSyncStatus((prev) => ({ ...prev, isOnline: true }));
+    };
+    const handleOffline = () => {
+      setSyncStatus((prev) => ({ ...prev, isOnline: false }));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  // Save state to storage on changes
+  // Save to API
+  const saveToApi = useCallback(async (data: AppState): Promise<boolean> => {
+    if (!navigator.onLine) {
+      saveToOfflineQueue(data);
+      setSyncStatus((prev) => ({ ...prev, hasUnsyncedChanges: true }));
+      return false;
+    }
+
+    setSyncStatus((prev) => ({ ...prev, isSyncing: true, error: null }));
+
+    try {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: {
+          'X-User-Id': userId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save: ${response.status}`);
+      }
+
+      const result = await response.json();
+      clearOfflineQueue();
+
+      setSyncStatus((prev) => ({
+        ...prev,
+        isSyncing: false,
+        lastSyncedAt: result.lastSyncedAt,
+        hasUnsyncedChanges: false,
+        error: null,
+      }));
+
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save';
+      saveToOfflineQueue(data);
+
+      setSyncStatus((prev) => ({
+        ...prev,
+        isSyncing: false,
+        error: errorMessage,
+        hasUnsyncedChanges: true,
+      }));
+
+      return false;
+    }
+  }, [userId]);
+
+  // Force sync
+  const forceSync = useCallback(async () => {
+    await saveToApi(state);
+  }, [saveToApi, state]);
+
+  // Load state from API on mount
   useEffect(() => {
+    async function loadData() {
+      setSyncStatus((prev) => ({ ...prev, isLoading: true }));
+
+      try {
+        // First try to load from API
+        if (navigator.onLine) {
+          const response = await fetch(API_BASE, {
+            method: 'GET',
+            headers: {
+              'X-User-Id': userId,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.data) {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { _meta, ...cleanData } = result.data;
+              dispatch({ type: 'LOAD_STATE', payload: cleanData as AppState });
+              setSyncStatus((prev) => ({
+                ...prev,
+                isLoading: false,
+                lastSyncedAt: result.lastSyncedAt,
+                error: null,
+              }));
+              isInitialLoadRef.current = false;
+              return;
+            }
+          }
+        }
+
+        // Fallback to localStorage
+        const savedState = loadFromStorage<AppState | null>('appState_v2', null);
+        if (savedState) {
+          dispatch({ type: 'LOAD_STATE', payload: savedState });
+        }
+
+        // Check for offline queue
+        const offlineData = getOfflineQueue();
+        if (offlineData) {
+          dispatch({ type: 'LOAD_STATE', payload: offlineData });
+          setSyncStatus((prev) => ({ ...prev, hasUnsyncedChanges: true }));
+        }
+
+        setSyncStatus((prev) => ({ ...prev, isLoading: false }));
+        isInitialLoadRef.current = false;
+      } catch (error) {
+        console.error('Failed to load data:', error);
+
+        // Fallback to localStorage
+        const savedState = loadFromStorage<AppState | null>('appState_v2', null);
+        if (savedState) {
+          dispatch({ type: 'LOAD_STATE', payload: savedState });
+        }
+
+        setSyncStatus((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to load',
+        }));
+        isInitialLoadRef.current = false;
+      }
+    }
+
+    loadData();
+  }, [userId]);
+
+  // Save state on changes (debounced)
+  useEffect(() => {
+    // Skip initial load
+    if (isInitialLoadRef.current) return;
+
+    // Always save to localStorage as backup
     saveToStorage('appState_v2', state);
-  }, [state]);
+
+    // Cancel pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounced save to API
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToApi(state);
+    }, SYNC_DEBOUNCE_MS);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [state, saveToApi]);
+
+  // Sync offline queue when coming back online
+  useEffect(() => {
+    if (syncStatus.isOnline && syncStatus.hasUnsyncedChanges) {
+      saveToApi(state);
+    }
+  }, [syncStatus.isOnline, syncStatus.hasUnsyncedChanges, saveToApi, state]);
 
   // Get current session
   const currentSession = state.currentSessionId
@@ -833,6 +1054,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     eveningNudge,
     triageState,
     thisWeeksBacklog,
+    syncStatus,
+    forceSync,
     setViewMode,
     startNewDay,
     updateSleepTime,

@@ -6,6 +6,7 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import { exportDataAsJSON, exportDataAsCSV } from '../../utils/export';
+import SyncStatusIndicator from '../ui/SyncStatusIndicator';
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -42,14 +43,17 @@ export default function Header({ children }: HeaderProps) {
           </div>
         )}
 
-        {/* Actions - hidden on mobile (available in settings page) */}
-        <div className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
-            <Download className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
-            <Settings className="w-5 h-5" />
-          </Button>
+        {/* Sync Status + Actions */}
+        <div className="flex items-center gap-3">
+          <SyncStatusIndicator />
+          <div className="hidden md:flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
+              <Download className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+              <Settings className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
 
