@@ -1,22 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis';
 
-// Create Redis client (lazily initialized)
-let redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!redis) {
-    const redisUrl = process.env.REDIS_URL;
-    if (!redisUrl) {
-      throw new Error('REDIS_URL environment variable is not set');
-    }
-    redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
-  }
-  return redis;
-}
+// Create Redis client using Upstash REST API
+const redis = new Redis({
+  url: process.env.YNAHT_KV_REST_API_URL!,
+  token: process.env.YNAHT_KV_REST_API_TOKEN!,
+});
 
 // Helper to get user ID from request
 function getUserId(req: VercelRequest): string | null {
@@ -49,14 +38,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const dataKey = getDataKey(userId);
 
   try {
-    const client = getRedis();
-
     switch (req.method) {
       case 'GET': {
         // Fetch user data
-        const data = await client.get(dataKey);
+        const data = await redis.get(dataKey);
         return res.status(200).json({
-          data: data ? JSON.parse(data) : null,
+          data: data || null,
           lastSyncedAt: new Date().toISOString(),
         });
       }
@@ -78,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         };
 
-        await client.set(dataKey, JSON.stringify(dataToStore));
+        await redis.set(dataKey, dataToStore);
 
         return res.status(200).json({
           success: true,
